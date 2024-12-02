@@ -60,13 +60,17 @@ def extract_keywords_keybert(captions: list, keywords_num=5, debug=False):
     keyword_pair_list_list: List[List[Tuple[str, float]]] = model.extract_keywords(
         captions,
         keyphrase_ngram_range=(15, 15),
-        stop_words="english",
+        # stop_words="english",
         use_maxsum=True,
         nr_candidates=20,
         use_mmr=True,  # Maximal Margin Relevance
-        diversity=0.7,
+        diversity=0.9,
         top_n=keywords_num,
     )
+    # print(keyword_pair_list_list)
+    if len(captions) == 1:
+        keyword_pair_list_list = [keyword_pair_list_list]
+    # print(keyword_pair_list_list)
     keywords_str_list = []
     for keyword_pair_list in keyword_pair_list_list:
         keywords_str = ", ".join([pair[0] for pair in keyword_pair_list[:keywords_num]])
@@ -114,7 +118,7 @@ def extract_keywords(
         # use tfidf method
         captions = [info["caption"] for info in infos.values()]
         keywords_str_list = extract_keywords_tfidf(
-            captions, keywords_num=keywords_num, printKeywords=debug
+            captions, keywords_num=keywords_num, debug=debug
         )
     elif method == "cutoff":
         # use cutoff method

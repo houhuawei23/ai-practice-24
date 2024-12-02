@@ -59,11 +59,24 @@ import numpy as np
 # info: Dict[caption: str -> ]
 # infos: Dict[id -> info]
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# Load the CLIP model
+model, preprocess = clip.load("ViT-B/32", device=device)
+
+images_path = "./dataset1/images/"
+
+# Load the images and preprocess them
+images_files = os.listdir(images_path)
+
+images = [Image.open(images_path + f).convert("RGB") for f in os.listdir(images_path)]
+
+images_preprocessed = torch.stack([preprocess(img) for img in images]).to(device)
+
 
 def predict_best_image(
     # keywords_list,
     infos: Dict[int, Dict],
-    images_path="./dataset1/images/",
     debug=False,
 ):
     # check infos[idx] must have "caption" and "keywords" keys
@@ -76,38 +89,38 @@ def predict_best_image(
     #     print("Error: infos[idx] must have 'caption' and 'keywords' keys")
     #     return
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    # Load the CLIP model
-    model, preprocess = clip.load("ViT-B/32", device=device)
-
     keywords_list = [info["keywords"] for info in infos.values()]
 
     captions_tensor = clip.tokenize(keywords_list).to(device)
 
-    # Load the images and preprocess them
-    images_files = os.listdir(images_path)
+    # # Load the images and preprocess them
+    # images_files = os.listdir(images_path)
 
-    images = [
-        Image.open(images_path + f).convert("RGB") for f in os.listdir(images_path)
-    ]
+    # images = [
+    #     Image.open(images_path + f).convert("RGB") for f in os.listdir(images_path)
+    # ]
 
-    images_preprocessed = torch.stack([preprocess(img) for img in images]).to(device)
+    # images_preprocessed = torch.stack([preprocess(img) for img in images]).to(device)
 
     # Calculate the similarity between the images and the captions
 
     with torch.no_grad():
-        image_features = model.encode_image(images_preprocessed)
-        text_features = model.encode_text(captions_tensor)
+        # no need for these features
+        # image_features = model.encode_image(images_preprocessed)
+        # text_features = model.encode_text(captions_tensor)
+        # logits_per_text: (size_of_captions, size_of_images)
+        # logits_per_image: (size_of_images, size_of_captions)
         logits_per_image, logits_per_text = model(images_preprocessed, captions_tensor)
-        probs = logits_per_image.softmax(dim=-1).cpu().numpy()
+        # probs = logits_per_image.softmax(dim=-1).cpu().numpy()
+        probs = logits_per_text.softmax(dim=-1).cpu().numpy()
 
     if debug:
         print("Probs: ")
         print(probs)
 
     # select the best image for each caption
-    best_image_indices = np.argmax(probs, axis=0)
+    best_image_indices = np.argmax(probs, axis=1)
+
     # print image paths for the best images
     best_image_paths = [images_files[i] for i in best_image_indices]
 
@@ -165,11 +178,11 @@ import os
 def main():
     debug = True
     # read the caption file
-    keywords_num = 2
+    keywords_num = 1
     infos = read_caption_file("./dataset1/caption.json", debug=debug)
     extract_keywords(infos, method=args.method, keywords_num=keywords_num, debug=debug)
-    predict_best_image(infos, images_path="./dataset1/images/", debug=debug)
-    
+    predict_best_image(infos, debug=debug)
+
     results_dir = "./results"
     # output_path = f"./result_{args.method}_{keywords_num}.json"'
     output_path = os.path.join(results_dir, f"result_{args.method}_{keywords_num}.json")
@@ -186,5 +199,30 @@ def main():
     print("Evaluation done.")
 
 
+from keywords_extract import extract_keywords_keybert
+
+
+def test(sentence):
+    # sentence =  "A woman strides purposefully along the sidewalk, her determined footsteps echoing against the pavement, another person trailing behind her, their connection palpable in the shared rhythm of their journey, a silent companion in the hustle and bustle of city life.",
+    # sentence = "Five people are sitting in one big room."
+    # sentence = "dog are running in the street."
+    sentences = [sentence]
+
+    keywords_str_list = extract_keywords_keybert(sentences, keywords_num=5, debug=True)
+    print(keywords_str_list)
+    infos = {0: {"caption": sentence, "keywords": sentence}}
+    infos = {0: {"caption": sentence, "keywords": keywords_str_list[0]}}
+    predict_best_image(
+        infos,
+        # debug=True
+    )
+    print(f"{infos}")
+
+
 if __name__ == "__main__":
+    # while True:
+    #     sentence = input("Enter a sentence: ")
+    #     if sentence == "exit":
+    #         break
+    #     test(sentence)
     main()
