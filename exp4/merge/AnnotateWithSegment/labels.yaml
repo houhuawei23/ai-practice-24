@@ -1,0 +1,13 @@
+label:
+- color: '#000000'
+  name: __background__
+- color: '#ef2929'
+  name: houses
+- color: '#ad7fa8'
+  name: roads
+- color: '#729fcf'
+  name: water
+- color: '#8ae234'
+  name: trees
+- color: '#e9b96e'
+  name: ground
