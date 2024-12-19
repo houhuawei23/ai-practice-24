@@ -54,10 +54,14 @@ def draw_regions(
             # Convert to Nx2 array
             cv2.polylines(image, [points], isClosed=True, color=color, thickness=2)
 
+        mid_x = (x_min + x_max) // 2
+        mid_y = (y_min + y_max) // 2
+
         cv2.putText(
             image,
             category,
-            (x_min, y_min - 10),
+            # (x_min, y_min - 10),
+            (mid_x, mid_y),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             color,

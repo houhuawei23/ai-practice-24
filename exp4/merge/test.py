@@ -6,6 +6,7 @@ from PIL import Image
 import os
 
 from utils import parse_json_and_crop
+from visualize import visualize
 
 
 # Test the model
@@ -67,26 +68,36 @@ def test_classifier(
 
 if __name__ == "__main__":
     import os
-    from torchvision import transforms, models
-    from torch import nn
+    from configs import (
+        categories,
+        transform,
+        cropped_output_dir_path,
+        classifier_output_dir_path,
+        get_image_json_output_paths,
+    )
 
-    from torchvision.models import resnet18, ResNet18_Weights
+    # image_name = "3516_enlarge_0"
+    image_name = "3532_reduce_0"
+    test_image_path, test_json_path, output_dir = get_image_json_output_paths(
+        image_name, new_image=True
+    )
 
-    imaage_name = "3532"
-    test_image_path = f"./dataset/image/{imaage_name}.png"
-    test_json_path = f"./dataset/image/{imaage_name}.json"
-    test_cropped_regions = "./test_cropped_regions"
-    output_dir = os.path.join(test_cropped_regions, imaage_name)
+    output_dir = os.path.join(cropped_output_dir_path, image_name)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     from configs import categories, transform
     from utils import load_resnet18
 
-    model = load_resnet18("classifier.pth", categories)
+    classifier_path = os.path.join(
+        classifier_output_dir_path, 
+        # "classifier_trained_on_3516.pth"
+        "classifier_3516_3532_3533.pth"
+    )
+    model = load_resnet18(classifier_path, categories)
 
     # Assuming `model` is your trained model
-    test_accuracy, test_f1 = test_classifier(
+    test_accuracy, test_f1, predicted_categories = test_classifier(
         model,
         test_image_path,
         test_json_path,
@@ -97,3 +108,16 @@ if __name__ == "__main__":
 
     print(f"Test Accuracy: {test_accuracy * 100:.2f}%")
     print(f"Test F1 Score: {test_f1:.2f}")
+
+    from utils import load_label_colors
+
+    category_to_color = load_label_colors()
+    visualize(
+        test_image_path,
+        test_json_path,
+        categories,
+        category_to_color,
+        predicted_categories,
+        test_accuracy=test_accuracy,
+        test_f1=test_f1,
+    )

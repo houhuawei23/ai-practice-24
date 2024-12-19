@@ -1,7 +1,7 @@
 from configs import get_image_json_output_paths
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
 import cv2
-
+import os.path as ospath
 from utils import load_SamAutoMaskGenerator, show_anns
 import matplotlib.pyplot as plt
 import numpy as np
@@ -49,9 +49,13 @@ def collect_segments_image(image, masks):
     return test_segmentations
 
 
-def main(image_id="3516"):
-    image_path, json_path, output_dir = get_image_json_output_paths(image_id)
-    print(image_path, json_path, output_dir)
+def main(image_path: str):
+    # check image_path
+    if not ospath.exists(image_path):
+        print(f"Error: {image_path} not exists")
+        return
+
+    # load image
     image = cv2.imread(image_path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     # if debug:
@@ -109,4 +113,9 @@ def main(image_id="3516"):
 
 
 if __name__ == "__main__":
-    main()
+    # image_id = "3516"
+    # image_path, json_path, output_dir = get_image_json_output_paths(image_id)
+    # print(image_path, json_path, output_dir)
+    # main(image_path)
+    
+    main("./dataset/new_image/3516_enlarge_0.png")

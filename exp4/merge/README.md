@@ -392,3 +392,13 @@ def create_new_dataset(source_dir, target_dir, mode="enlarge", factor=2):
 3516-origin-reduce
 
 ![3516-origin-reduce](./image/README/3516-origin-reduce.png)
+
+在增强后的数据集上测试：
+
+![1734592743977](image/README/1734592743977.png)
+
+增强前：
+
+![1734521428094](image/README/1734521428094.png)
+
+发现数据增强后，训练的模型仍能很好地预测图像中的目标，说明 ResNet-18 模型在图像增强上有很好的泛化能力，鲁棒性较强。
