@@ -6,8 +6,100 @@ import numpy as np
 
 import yaml
 
+from typing import List, Dict, Tuple
 
-def load_label_colors(labels_yaml_path):
+
+def draw_predictions(
+    image_to_show: np.ndarray,
+    masks: List[Dict],
+    predicted_categories: List[str],
+    category_to_color: Dict[str, Tuple[int, int, int]],
+):
+    for mask, predicted_category in zip(masks, predicted_categories):
+        color = category_to_color[predicted_category]
+        segmentation = mask[
+            "segmentation"
+        ]  # ndarray, type = bool, shape = (height, width)
+        x, y, w, h = mask["bbox"]  # x, y: top-left corner, w, h: width and height
+        # print(f"category: {predicted_category}, color: {color}, bbox: {x}, {y}, {w}, {h}")
+        # cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
+        # TODO: draw the outline of the segmenation mask
+        # Find contours from the segmentation mask
+        contours, _ = cv2.findContours(
+            segmentation.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        # Draw the contours on the image
+        cv2.drawContours(image_to_show, contours, -1, color, 2)
+        # category label
+        cv2.putText(
+            image_to_show,
+            predicted_category,
+            (x, y - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            color,
+            2,
+        )
+    return image_to_show
+
+
+def show_anns(anns: List[Dict]):
+    """
+    anns: List[Dict]
+        "segmentation":
+            ndarray, type=bool, shape=(H, W), values=True where the segment is present
+        "area": int, area of the segment
+        "bbox": List[int], [x, y, w, h] of the segment
+        "predicted_iou": float, IOU of the segment with the predicted mask
+        "point_coords": List[List[int]], list of points that define the segment
+        "stability_score": float, stability score of the segment
+        "crop_box": List[int], [x, y, w, h] of the crop box used to generate the segment
+    """
+    import matplotlib.pyplot as plt
+
+    if len(anns) == 0:
+        return
+    sorted_anns = sorted(anns, key=(lambda x: x["area"]), reverse=True)
+    ax = plt.gca()
+    ax.set_autoscale_on(False)
+
+    img = np.ones(
+        (
+            sorted_anns[0]["segmentation"].shape[0],
+            sorted_anns[0]["segmentation"].shape[1],
+            4,
+        )
+    )
+    img[:, :, 3] = 0
+    for ann in sorted_anns:
+        m = ann["segmentation"]
+        color_mask = np.concatenate([np.random.random(3), [0.35]])
+        img[m] = color_mask
+    ax.imshow(img)
+
+
+def load_SamAutoMaskGenerator(
+    sam_checkpoint="../reps/sam_vit_b_01ec64.pth", model_type="vit_b", device="cpu"
+):
+    """
+    Load the SamAutoMaskGenerator model from the given path.
+    """
+    import torch
+    from configs import get_image_json_output_paths
+    from segment_anything import (
+        sam_model_registry,
+        SamAutomaticMaskGenerator,
+        SamPredictor,
+    )
+
+    sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+    sam.to(device=device)
+
+    mask_generator = SamAutomaticMaskGenerator(sam)
+    return mask_generator
+
+
+def load_label_colors(labels_yaml_path="./dataset/label/labels.yaml"):
     """
     Load category names and their corresponding colors from a YAML file.
 
@@ -27,7 +119,10 @@ def load_label_colors(labels_yaml_path):
     return category_to_color
 
 
-def load_resnet18(model_path, categories):
+from configs import categories
+
+
+def load_resnet18(model_path, categories=categories):
     """
     Load the ResNet18 model from the given path.
     """

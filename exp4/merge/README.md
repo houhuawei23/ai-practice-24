@@ -274,3 +274,121 @@ def visualize(
 
     plt.show()
 ```
+
+#### 分割-分类 Pipleline
+
+- [seg_class_pipeline.py](./seg_class_pipeline.py)
+
+```python
+image_path, json_path, output_dir = get_image_json_output_paths(image_id)
+print(image_path, json_path, output_dir)
+image = cv2.imread(image_path)
+image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+mask_generator = load_SamAutoMaskGenerator()
+masks = mask_generator.generate(image)
+
+# load model
+from utils import load_resnet18, load_label_colors, draw_predictions
+from configs import classifier_output_dir_path, categories, transform
+import os
+import torch
+
+model = load_resnet18(
+    os.path.join(classifier_output_dir_path, "classifier.pth"), categories
+)
+
+# predict
+segments_images = collect_segments_image(image, masks)
+
+model.eval()
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = model.to(device)
+predicted_labels = []
+
+with torch.no_grad():
+    for seg in segments_images:
+        input = transform(seg).unsqueeze(0)
+        output = model(input)
+        _, predicted = torch.max(output, 1)
+        predicted_labels.append(predicted.item())
+
+predicted_categories = [categories[label] for label in predicted_labels]
+category_to_color = load_label_colors()
+image_to_show = draw_predictions(
+    image.copy(), masks, predicted_categories, category_to_color
+)
+figure = plt.figure(figsize=(10, 10))
+plt.imshow(image_to_show)
+plt.axis("off")
+plt.show()
+```
+
+1 auto seg using sam
+
+![](./image/README/origin_plus_autoseg.png)
+
+2 predict using resnet18
+
+![](./image/README/autoseg_with_segpredict.png)
+
+![](./image/README/origin_with_segpredict.png)
+
+#### 数据增强 Data Augmentation
+
+- [data_augmentation.py](./data_augmentation.py)
+
+通过对原始图像进行数据增强，生成新的图像，增强数据集，提高模型的泛化能力。
+
+主要方法：
+
+- 缩放：将原始遥感图像放大并裁切
+- 降采样：将原始遥感图像分辨率降低
+
+```python
+def create_new_dataset(source_dir, target_dir, mode="enlarge", factor=2):
+    """
+    Create a new dataset by enlarging or reducing images.
+
+    :param source_dir: Directory containing the source images.
+    :param target_dir: Directory to save the transformed images.
+    :param mode: Mode of transformation ('enlarge' or 'reduce').
+    :param factor: Enlargement or reduction factor (e.g., 2 for 4x, 3 for 9x).
+    """
+    os.makedirs(target_dir, exist_ok=True)
+    image_files = [
+        f
+        for f in os.listdir(source_dir)
+        if f.endswith((".png", ".jpg", ".jpeg", ".tif"))
+    ]
+
+    for image_file in image_files:
+        image_path = os.path.join(source_dir, image_file)
+        image = Image.open(image_path)
+        image = image.convert("RGB")  # Ensure consistent mode
+
+        if mode == "enlarge":
+            new_images = enlarge_image(image, factor)
+        elif mode == "reduce":
+            new_images = reduce_image(image, factor)
+        else:
+            raise ValueError("Invalid mode. Use 'enlarge' or 'reduce'.")
+
+        # Save new images to the target directory
+        for i, new_image in enumerate(new_images):
+            new_image_path = os.path.join(
+                target_dir, f"{os.path.splitext(image_file)[0]}_{mode}_{i}.png"
+            )
+            new_image.save(new_image_path)
+
+        print(f"Processed {image_file} -> {len(new_images)} new images.")
+
+```
+
+3516-origin-enlarge
+
+![3516-origin-enlarge](./image/README/3516-origin-enlarge.png)
+
+3516-origin-reduce
+
+![3516-origin-reduce](./image/README/3516-origin-reduce.png)

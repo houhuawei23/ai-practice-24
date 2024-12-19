@@ -27,3 +27,4 @@ def get_image_json_output_paths(image_id: str):
     json_path = os.path.join(images_dir_path, f"{image_id}.json")
     output_dir = os.path.join(cropped_output_dir_path, f"{image_id}")
     return image_path, json_path, output_dir
+

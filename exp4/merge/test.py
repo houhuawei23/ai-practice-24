@@ -1,5 +1,6 @@
 from sklearn.metrics import accuracy_score, f1_score
 import torch
+import torchvision
 from torchvision import transforms
 from PIL import Image
 import os
@@ -9,7 +10,12 @@ from utils import parse_json_and_crop
 
 # Test the model
 def test_classifier(
-    model, test_image_path, test_json_path, categories, output_dir, transform
+    model: torch.nn.Module,
+    test_image_path: str,
+    test_json_path: str,
+    categories: list,
+    output_dir: str,
+    transform: torchvision.transforms.Compose,
 ):
     # Parse JSON and crop test regions
     annotations = parse_json_and_crop(test_image_path, test_json_path, output_dir)
@@ -44,6 +50,18 @@ def test_classifier(
     # print(f"Accuracy: {accuracy * 100:.2f}%")
     # print(f"F1 Score: {f1:.2f}")
     predicted_categories = [idx_to_category[idx] for idx in predicted_labels]
+
+    # ground truth categories count
+    true_categories_count = {category: 0 for category in categories}
+    for annotation in annotations:
+        true_categories_count[annotation["category"]] += 1
+
+    # predicted categories count
+    predicted_categories_count = {category: 0 for category in categories}
+    for category in predicted_categories:
+        predicted_categories_count[category] += 1
+    print(f"True Categories Count: {true_categories_count}")
+    print(f"Predicted Categories Count: {predicted_categories_count}")
     return accuracy, f1, predicted_categories
 
 
